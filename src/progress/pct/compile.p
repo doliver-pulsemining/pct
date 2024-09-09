@@ -1123,8 +1123,12 @@ FUNCTION createDir RETURNS LOGICAL (INPUT base AS CHARACTER, INPUT d AS CHARACTE
                ttDirs.dirName = c.
       END.
       ELSE DO:
-        RUN logError IN hSrcProc (SUBSTITUTE("Unable to create directory '&1' - Err &2", c, OS-ERROR)).
-        RETURN FALSE.
+          FILE-INFO:FILE-NAME = base + c.
+          IF FILE-INFO:FULL-PATHNAME EQ ? THEN DO:
+              RUN logError IN hSrcProc (SUBSTITUTE("Unable to create directory '&1' - Err &2", c, OS-ERROR)).
+              RETURN FALSE.
+          END.
+          ELSE MESSAGE "BUGCATCHER: Create Directory exception ignored - directory exists".
       END.
     END.
   END.
