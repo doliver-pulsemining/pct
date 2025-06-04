@@ -493,11 +493,20 @@ PROCEDURE compileXref:
   END.
 &ENDIF
 
-  RUN pctcomp.p (IF lRelative THEN ipInFile ELSE ipInDir + '/':U + ipInFile,
-                 cSaveDir, debugListingFile,
-                 IF Lst AND NOT LstPrepro THEN PCTDir + '/':U + ipInFile ELSE ?,
-                 preprocessFile, cStrXrefFile, cXrefFile, IF bAboveEq1173 THEN cOpts ELSE "").
-
+  // IEntity.cls and other hierarchy files are failing to be created correctly
+  //  during multithreaded class compiles. This loop  allows the compile to 
+  //  retry up to 10 times for this specific compiler error. If it is still
+  //  failing at that point continue with the normal logic (and fail the build)
+  DO i = 1 TO 10:
+    RUN pctcomp.p (IF lRelative THEN ipInFile ELSE ipInDir + '/':U + ipInFile,
+                   cSaveDir, debugListingFile,
+                   IF Lst AND NOT LstPrepro THEN PCTDir + '/':U + ipInFile ELSE ?,
+                   preprocessFile, cStrXrefFile, cXrefFile, IF bAboveEq1173 THEN cOpts ELSE "").
+    // Proceed if no error or if error but not error code 477.
+    IF NOT COMPILER:ERROR OR COMPILER:GET-NUMBER(1) NE 477 THEN LEAVE.
+    RUN logWarning IN hSrcProc (SUBSTITUTE("RETRY! MultiThread file clash: &1", COMPILER:GET-MESSAGE(1))).
+  END.
+  
 &IF DECIMAL(SUBSTRING(PROVERSION, 1, INDEX(PROVERSION, '.') + 1)) GE 11.3 &THEN
   IF VALID-OBJECT(callback) THEN callback:afterCompile(hSrcProc, ipInFile, ipInDir).
 &ENDIF
